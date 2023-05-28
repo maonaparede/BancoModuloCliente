@@ -3,6 +3,7 @@ package com.tads.dac.cliente.controller;
 
 import com.tads.dac.cliente.DTO.ClienteEndDTO;
 import com.tads.dac.cliente.DTO.ClienteUpdateDTO;
+import com.tads.dac.cliente.DTO.MensagemDTO;
 import com.tads.dac.cliente.exception.ClienteConstraintViolation;
 import com.tads.dac.cliente.exception.ClienteNotFoundException;
 import com.tads.dac.cliente.exception.NegativeSalarioException;
@@ -35,11 +36,12 @@ public class ClienteController {
     }
     
     @PutMapping("/cli/{id}")
-    public ResponseEntity<?> updateCliente(@PathVariable(value = "id") Long id, @RequestBody ClienteUpdateDTO dto){
+    public ResponseEntity<?> updateCliente(@RequestBody ClienteUpdateDTO dto){
         try{
-            
-            ClienteEndDTO dto2 = serv.update(id, dto);
-            return new ResponseEntity<>(dto2, HttpStatus.OK);
+            MensagemDTO msg = new MensagemDTO();
+            msg.setSendObj(dto);
+            msg = serv.update(msg);
+            return new ResponseEntity<>(msg.getReturnObj(), HttpStatus.OK);
             
         } catch (ClienteConstraintViolation | NegativeSalarioException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);

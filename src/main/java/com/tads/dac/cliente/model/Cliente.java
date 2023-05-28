@@ -41,12 +41,6 @@ public class Cliente implements Serializable{
     
     @Column(length = 11, nullable = false, unique = true)
     private String cpf;
-  
-    @Column(name = "nome_gerente")
-    private String nomeGerente;
-    
-    @Column(name = "id_gerente")
-    private Long idGerente;
     
     @Column(length = 100, nullable = false, name = "end_logradouro")
     private String logradouro;

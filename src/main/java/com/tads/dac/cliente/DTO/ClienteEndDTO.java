@@ -27,10 +27,6 @@ public class ClienteEndDTO {
     private BigDecimal salario;
     
     private String cpf;
-  
-    private String nomeGerente;
-    
-    private Long idGerente;
     
     private String logradouro;
     

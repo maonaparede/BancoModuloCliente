@@ -23,9 +23,5 @@ public class ClienteContaDTO {
     private BigDecimal salario;
     
     private String cpf;
-  
-    private String nomeGerente;
-    
-    private Long idGerente;
     
 }

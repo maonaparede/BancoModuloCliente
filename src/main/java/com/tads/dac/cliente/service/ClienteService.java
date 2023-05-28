@@ -4,6 +4,7 @@ package com.tads.dac.cliente.service;
 import com.tads.dac.cliente.DTO.ClienteContaDTO;
 import com.tads.dac.cliente.DTO.ClienteEndDTO;
 import com.tads.dac.cliente.DTO.ClienteUpdateDTO;
+import com.tads.dac.cliente.DTO.MensagemDTO;
 import com.tads.dac.cliente.exception.ClienteConstraintViolation;
 import com.tads.dac.cliente.exception.ClienteNotFoundException;
 import com.tads.dac.cliente.exception.NegativeSalarioException;
@@ -13,6 +14,8 @@ import com.tads.dac.cliente.repository.ClienteRepository;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.hibernate.exception.ConstraintViolationException;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,8 +56,9 @@ public class ClienteService {
         }
     }
     
-    public ClienteEndDTO update(Long id, ClienteUpdateDTO dto) throws ClienteNotFoundException, ClienteConstraintViolation, NegativeSalarioException{
-        Optional<Cliente> cl = rep.findById(id);
+    public MensagemDTO update(MensagemDTO msg) throws ClienteNotFoundException, ClienteConstraintViolation, NegativeSalarioException{
+        ClienteUpdateDTO dto = mapper.map(msg.getSendObj(), ClienteUpdateDTO.class);
+        Optional<Cliente> cl = rep.findById(dto.getId());
         
         if(!cl.isPresent()){
             throw new ClienteNotFoundException("O Cliente com esse Id não Existe!");
@@ -63,6 +67,9 @@ public class ClienteService {
         if(dto.getSalario().compareTo(BigDecimal.ONE) < 1){
             throw new NegativeSalarioException("O Salário do Cliente deve ser Maior que R$1");
         }
+        
+        ClienteEndDTO dto2 = mapper.map(cl.get(), ClienteEndDTO.class);
+        msg.setReturnObj(dto2); //Objeto de Retorno pra ser gravado no Event Sourcing
         
         try{
             Cliente cliente = cl.get();
@@ -78,13 +85,12 @@ public class ClienteService {
             cliente.setTipo(dto.getTipo());
             
             cliente.setSalario(dto.getSalario());
+                   
+            cliente = rep.save(cliente);
             
-            //Atualiza o bd read do modulo conta + o limite
-            ClienteContaDTO conta = mapper.map(cliente, ClienteContaDTO.class);
-            atualizaBdContaRead(conta);
-            
-            ClienteEndDTO dto2 = mapper.map(cliente, ClienteEndDTO.class);
-            return dto2;
+            dto2 = mapper.map(cliente, ClienteEndDTO.class);
+            msg.setSendObj(dto2); //Objeto que vai ser passado pra prox parte do saga
+            return msg;
             
         }catch(DataIntegrityViolationException e){
             SQLException ex = ((ConstraintViolationException) e.getCause()).getSQLException();
@@ -93,6 +99,15 @@ public class ClienteService {
             throw new ClienteConstraintViolation("Esse " + campo + " já existe!");
         }
         
+    }
+    
+    public void rollbackCliente(MensagemDTO msg){
+        try {
+            update(msg);
+        } catch (ClienteNotFoundException | ClienteConstraintViolation | 
+                NegativeSalarioException ex) {
+            Logger.getLogger(ClienteService.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
     private void atualizaBdContaRead(ClienteContaDTO dto){
