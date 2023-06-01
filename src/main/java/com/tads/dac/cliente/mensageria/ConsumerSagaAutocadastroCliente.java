@@ -1,49 +1,46 @@
 
 package com.tads.dac.cliente.mensageria;
 
-
+import com.tads.dac.cliente.DTO.ClienteEndDTO;
 import com.tads.dac.cliente.DTO.MensagemDTO;
 import com.tads.dac.cliente.exception.ClienteConstraintViolation;
-import com.tads.dac.cliente.exception.ClienteNotFoundException;
-import com.tads.dac.cliente.exception.NegativeSalarioException;
 import com.tads.dac.cliente.service.ClienteService;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.modelmapper.ModelMapper;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.stereotype.Component;
 
-@Component
-public class ConsumerSagaCliente{
+public class ConsumerSagaAutocadastroCliente {
     
     @Autowired
     private ModelMapper mapper;
+    @Autowired
+    private AmqpTemplate template;
     
     @Autowired
     private ClienteService serv;
     
-    @Autowired
-    private AmqpTemplate template;
 
-    @RabbitListener(queues = "perfil-cliente-saga")
+    @RabbitListener(queues = "auto-cliente-saga")
     public void commitOrdem(@Payload MensagemDTO msg) {
         
-        try{
-            System.out.println("Chegou");
-            msg = serv.update(msg);
-        }catch (ClienteConstraintViolation | ClienteNotFoundException |
-            NegativeSalarioException ex ){
-            
+        ClienteEndDTO dto = mapper.map(msg.getSendObj(), ClienteEndDTO.class);
+        try {
+            dto = serv.save(dto);
+            msg.setSendObj(dto);
+        } catch (ClienteConstraintViolation ex) {
             msg.setMensagem(ex.getMessage());
         }
         
-        template.convertAndSend("perfil-cliente-saga-receive",msg);
+        template.convertAndSend("auto-cliente-saga-receive", msg);
     }
 
-    @RabbitListener(queues = "perfil-cliente-saga-rollback")
+    @RabbitListener(queues = "auto-cliente-saga-rollback")
     public void rollbackOrdem(@Payload MensagemDTO msg) {
-        serv.rollbackClienteUpdate(msg);
-    }
-    
+        ClienteEndDTO dto = mapper.map(msg.getSendObj(), ClienteEndDTO.class);
+        serv.rollbackAutocadastro(dto.getId());
+    }    
 }

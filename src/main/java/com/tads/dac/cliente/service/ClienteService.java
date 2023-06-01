@@ -76,7 +76,7 @@ public class ClienteService {
             cliente.setCep(dto.getCep());
             cliente.setCidade(dto.getCidade());
             cliente.setComplemento(dto.getComplemento());
-            cliente.setEmail(dto.getEmail());
+            //cliente.setEmail(dto.getEmail()); Não deixar alterar pq teria que add no saga 
             cliente.setEstado(cliente.getEstado());
             cliente.setLogradouro(dto.getLogradouro());
             cliente.setNome(dto.getNome());
@@ -101,7 +101,7 @@ public class ClienteService {
         
     }
     
-    public void rollbackCliente(MensagemDTO msg){
+    public void rollbackClienteUpdate(MensagemDTO msg){
         try {
             update(msg);
         } catch (ClienteNotFoundException | ClienteConstraintViolation | 
@@ -110,10 +110,13 @@ public class ClienteService {
         }
     }
     
+    public void rollbackAutocadastro(Long contaId){
+        rep.deleteById(contaId);
+    }
+    
     private void atualizaBdContaRead(ClienteContaDTO dto){
         System.out.println("Conta Atualizada " + dto.getNome());
         clienteContaMens.syncCliente(dto);
-        
     }
     
     public int mudarAllGerentes(Long idGerente, String nomeGerente, Long idOld){
