@@ -5,6 +5,7 @@ import com.tads.dac.cliente.DTO.ClienteContaDTO;
 import com.tads.dac.cliente.DTO.ClienteEndDTO;
 import com.tads.dac.cliente.DTO.ClienteUpdateDTO;
 import com.tads.dac.cliente.DTO.MensagemDTO;
+import com.tads.dac.cliente.DTO.PerfilUpdateDTO;
 import com.tads.dac.cliente.exception.ClienteConstraintViolation;
 import com.tads.dac.cliente.exception.ClienteNotFoundException;
 import com.tads.dac.cliente.exception.NegativeSalarioException;
@@ -41,7 +42,7 @@ public class ClienteService {
             Cliente cl = mapper.map(dto, Cliente.class);
             cl = rep.save(cl);
             
-            //Atualiza o bd read do modulo conta + o limite
+            //Atualiza o bd read do modulo conta
             ClienteContaDTO conta = mapper.map(cl, ClienteContaDTO.class);
             atualizaBdContaRead(conta);
             
@@ -69,14 +70,22 @@ public class ClienteService {
         }
         
         ClienteEndDTO dto2 = mapper.map(cl.get(), ClienteEndDTO.class);
-        msg.setReturnObj(dto2); //Objeto de Retorno pra ser gravado no Event Sourcing
+        msg.setSendObj(dto2); //Objeto de Retorno pra ser gravado no Event Sourcing
         
         try{
             Cliente cliente = cl.get();
+            
+            PerfilUpdateDTO ret = new PerfilUpdateDTO();
+            ret.setIdCliente(dto.getId());
+            ret.setOldEmail(cliente.getEmail());
+            ret.setNewEmail(dto.getEmail());
+            ret.setSalario(dto.getSalario());
+            msg.setReturnObj(ret); // O que retorna pra prox fase do saga
+            
             cliente.setCep(dto.getCep());
             cliente.setCidade(dto.getCidade());
             cliente.setComplemento(dto.getComplemento());
-            //cliente.setEmail(dto.getEmail()); Não deixar alterar pq teria que add no saga 
+            cliente.setEmail(dto.getEmail()); //
             cliente.setEstado(cliente.getEstado());
             cliente.setLogradouro(dto.getLogradouro());
             cliente.setNome(dto.getNome());
@@ -88,8 +97,9 @@ public class ClienteService {
                    
             cliente = rep.save(cliente);
             
-            dto2 = mapper.map(cliente, ClienteEndDTO.class);
-            msg.setSendObj(dto2); //Objeto que vai ser passado pra prox parte do saga
+             //Atualiza o bd read do modulo conta
+            ClienteContaDTO conta = mapper.map(cliente, ClienteContaDTO.class);
+            atualizaBdContaRead(conta);           
             return msg;
             
         }catch(DataIntegrityViolationException e){
@@ -99,6 +109,15 @@ public class ClienteService {
             throw new ClienteConstraintViolation("Esse " + campo + " já existe!");
         }
         
+    }
+    
+    public ClienteEndDTO getClienteById(Long id) throws ClienteNotFoundException{
+        Optional<Cliente> cl = rep.findById(id);
+        if(cl.isPresent()){
+            ClienteEndDTO dto = mapper.map(cl.get(), ClienteEndDTO.class);
+            return dto;
+        }
+        throw new ClienteNotFoundException("Esse Cliente Não Existe");
     }
     
     public void rollbackClienteUpdate(MensagemDTO msg){

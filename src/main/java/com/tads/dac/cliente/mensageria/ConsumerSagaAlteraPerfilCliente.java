@@ -15,7 +15,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ConsumerSagaCliente{
+public class ConsumerSagaAlteraPerfilCliente{
     
     @Autowired
     private ModelMapper mapper;
